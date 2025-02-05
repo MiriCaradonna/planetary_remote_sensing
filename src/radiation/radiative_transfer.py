@@ -161,7 +161,11 @@ def integrate_opacity_limb(opacity_profile: np.ndarray,
     
     # Return optical depth increment
     return opacity * path_length
+    
     """
+
+    [alternate (but more complicated) implementation]
+    
     # Calculate path segment lengths
     path_segments = np.linspace(z1, z2, num=100)
     path_lengths = np.array([calc_path_segment_curved(z1, z, impact_parameter, planet_radius) for z in path_segments])
@@ -176,6 +180,7 @@ def integrate_opacity_limb(opacity_profile: np.ndarray,
     return integrated_opacity
     #raise NotImplementedError("Students must implement this function")
     """
+    
 def surf_transmission(opacity_profile: np.ndarray,
                      angle: float,
                      spacecraft_alt: float,
@@ -201,7 +206,64 @@ def surf_transmission(opacity_profile: np.ndarray,
     Notes:
         Use integrate_opacity_nadir for calculations
     """
-    raise NotImplementedError("Students must implement this function")
+
+    if angle >= np.pi / 2:
+        raise ValueError("Angle must be less than π/2 radians.")
+    if direction not in ['to', 'from']:
+        raise ValueError("Direction must be either 'to' or 'from'.")
+    
+    if direction == 'to':
+        z1 = spacecraft_alt
+        z2 = 0.0
+    else: #direction == 'from'
+        z1 = 0.0
+        z2 = spacecraft_alt
+    
+    # Calculate integrated opacity along the path
+    integrated_opacity = integrate_opacity_nadir(opacity_profile, altitude_grid, z1, z2, angle, planet_radius)
+    
+    # Calculate transmission
+    transmission = np.exp(-integrated_opacity)
+    
+    return transmission
+    
+    #raise NotImplementedError("Students must implement this function")
+
+
+def limb_transmission(opacity_profile : np.ndarray ,
+                    tangent_alt : float ,
+                    spacecraft_alt : float ,
+                    planet_radius : float ,
+                    altitude_grid : np.ndarray ) -> float :
+    """ Calculate transmission for limb path through curved atmosphere .
+    
+    Uses integrate_opacity with impact parameter set by tangent altitude .
+    
+    Args :
+    opacity_profile : Vertical profile of opacity per unit length (1/m)
+    tangent_alt : Tangent altitude of line of sight (m)
+    spacecraft_alt : Altitude of spacecraft (m)
+    planet_radius : Planet radius (m)
+    altitude_grid : Altitudes corresponding to opacity profile (m)
+    
+    Returns :
+    Total transmission along the limb path
+    """
+    # Calculate the impact parameter
+    impact_parameter = planet_radius + tangent_alt
+    
+    # Define the start and end altitudes for the path
+    z1 = tangent_alt
+    z2 = spacecraft_alt
+    
+    # Integrate the opacity along the path
+    total_opacity = integrate_opacity_limb(opacity_profile, altitude_grid, z1, z2, impact_parameter, planet_radius)
+    
+    # Calculate the transmission
+    limb_transmission = np.exp(-total_opacity)
+    
+    return limb_transmission
+
 
 def cloud_visible_brightness(surface_albedo: float,
                            solar_flux: float,
@@ -239,4 +301,24 @@ def cloud_visible_brightness(surface_albedo: float,
         P(g) = (1 - g^2)/(1 + g^2 - 2g*cos(theta))^(3/2)
         where theta is the scattering angle
     """
-    raise NotImplementedError("Students must implement this function")
+
+    # Calculate the cosine of the solar zenith and emission angles
+    mu0 = np.cos(solar_zenith)
+    mu = np.cos(emission_angle)
+    
+    # Calculate the scattering angle theta
+    theta = np.arccos(np.cos(solar_zenith) * np.cos(emission_angle) + 
+                      np.sin(solar_zenith) * np.sin(emission_angle) * np.cos(azimuth_angle))
+    
+    # Calculate the Henyey-Greenstein phase function P(g)
+    phase_function = (1 - asymmetry_parameter**2) / (1 + asymmetry_parameter**2 - 2 * asymmetry_parameter * np.cos(theta))**(3/2)
+    
+    # Calculate the radiance using a single equation
+    radiance = (solar_flux * np.abs(mu0) * single_scatter_albedo * phase_function / (4 * np.pi)) * \
+               (1 - np.exp(-optical_depth / mu0 - optical_depth / mu)) + \
+               (surface_albedo * solar_flux * np.abs(mu0) / np.pi) * \
+               np.exp(-optical_depth / mu0) * np.exp(-optical_depth / mu)
+    
+    return radiance
+    
+    #raise NotImplementedError("Students must implement this function")

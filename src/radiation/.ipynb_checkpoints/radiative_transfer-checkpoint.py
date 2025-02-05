@@ -161,7 +161,11 @@ def integrate_opacity_limb(opacity_profile: np.ndarray,
     
     # Return optical depth increment
     return opacity * path_length
+    
     """
+
+    [alternate (but more complicated) implementation]
+    
     # Calculate path segment lengths
     path_segments = np.linspace(z1, z2, num=100)
     path_lengths = np.array([calc_path_segment_curved(z1, z, impact_parameter, planet_radius) for z in path_segments])
@@ -176,6 +180,7 @@ def integrate_opacity_limb(opacity_profile: np.ndarray,
     return integrated_opacity
     #raise NotImplementedError("Students must implement this function")
     """
+    
 def surf_transmission(opacity_profile: np.ndarray,
                      angle: float,
                      spacecraft_alt: float,
@@ -201,7 +206,28 @@ def surf_transmission(opacity_profile: np.ndarray,
     Notes:
         Use integrate_opacity_nadir for calculations
     """
-    raise NotImplementedError("Students must implement this function")
+
+    if angle >= np.pi / 2:
+        raise ValueError("Angle must be less than π/2 radians.")
+    if direction not in ['to', 'from']:
+        raise ValueError("Direction must be either 'to' or 'from'.")
+    
+    if direction == 'to':
+        z1 = spacecraft_alt
+        z2 = 0.0
+    else: #direction == 'from'
+        z1 = 0.0
+        z2 = spacecraft_alt
+    
+    # Calculate integrated opacity along the path
+    integrated_opacity = integrate_opacity_nadir(opacity_profile, altitude_grid, z1, z2, angle, planet_radius)
+    
+    # Calculate transmission
+    transmission = np.exp(-integrated_opacity)
+    
+    return transmission
+    
+    #raise NotImplementedError("Students must implement this function")
 
 def cloud_visible_brightness(surface_albedo: float,
                            solar_flux: float,
